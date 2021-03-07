@@ -76,4 +76,4 @@ if args.appid is not None and args.appsecret is not None:
       reward_streams_count += 1
 
   with open('index.html', 'w') as html_file:
-    html_file.write(Template(template).render(reward_streams=reward_streams, last_update=datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %z')))
+    html_file.write(Template(template).render(reward_streams=reward_streams, last_update=datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %z')) + '\n')
