@@ -1,6 +1,13 @@
-import argparse, datetime
+import argparse, datetime, json, PyRSS2Gen
 from jinja2 import Template
 from twitchAPI.twitch import Twitch
+
+class DateTimeEncoder(json.JSONEncoder):
+  def default(self, datetime_object):
+    if isinstance(datetime_object, datetime.datetime):
+      return datetime_object.strftime('%Y-%m-%d %H:%M:%S +0000')
+    else:
+      return super().default(datetime_object)
 
 template = '''<!doctype html>
 <html class="h-100" lang="en">
@@ -65,8 +72,9 @@ if args.appid is not None and args.appsecret is not None:
       user_name = stream['user_name']
       title = stream['title'].strip()
       thumbnail_url = stream['thumbnail_url'].format(width=1280, height=720)
+      started_at = datetime.datetime.strptime(stream['started_at'], '%Y-%m-%dT%H:%M:%SZ')
 
-      reward_stream = {'user_login': user_login, 'user_name': user_name, 'title': title, 'thumbnail_url': thumbnail_url}
+      reward_stream = {'user_login': user_login, 'user_name': user_name, 'title': title, 'thumbnail_url': thumbnail_url, 'started_at': started_at}
 
       if reward_streams_count % 4 == 0:
         reward_streams.append([reward_stream])
@@ -75,5 +83,31 @@ if args.appid is not None and args.appsecret is not None:
 
       reward_streams_count += 1
 
+  last_update = datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %z')
+
   with open('index.html', 'w') as html_file:
-    html_file.write(Template(template).render(reward_streams=reward_streams, last_update=datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %z')) + '\n')
+    html_file.write(Template(template).render(reward_streams=reward_streams, last_update=last_update) + '\n')
+
+  with open('api.json', 'w') as json_file:
+    json.dump({'last_update': last_update, 'streams': [reward_stream for row in reward_streams for reward_stream in row]}, json_file, cls=DateTimeEncoder)
+
+    json_file.write('\n')
+
+  feed = PyRSS2Gen.RSS2(title='Rocket League Fan Rewards',
+    link='https://haltepunkt.github.io/RocketLeagueFanRewards/feed.xml',
+    description='Streams with Rocket League Fan Rewards active',
+    docs=None, generator=None)
+
+  for reward_stream in [reward_stream for row in reward_streams for reward_stream in row]:
+    item = PyRSS2Gen.RSSItem(title=reward_stream['title'],
+    description=reward_stream['user_name'],
+    link='https://www.twitch.tv/' + reward_stream['user_login'],
+    pubDate=reward_stream['started_at'],
+    guid=PyRSS2Gen.Guid('https://www.twitch.tv/{}#{}'.format(reward_stream['user_login'], reward_stream['started_at'].strftime('%Y-%m-%dT%H:%M:%SZ'))))
+
+    feed.items.append(item)
+
+  with open('feed.xml', 'w') as feed_file:
+    feed.write_xml(feed_file)
+
+    feed_file.write('\n')
