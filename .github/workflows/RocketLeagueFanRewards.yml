@@ -24,7 +24,7 @@ jobs:
         pip install Jinja2 PyRSS2Gen twitchAPI
     - name: Execute
       run: |
-        python RocketLeagueFanRewards.py --appid ${{ secrets.APP_ID }} --appsecret ${{ secrets.APP_SECRET }}
+        python RocketLeagueFanRewards.py --appid ${{ secrets.APP_ID }} --appsecret ${{ secrets.APP_SECRET }} --html --api --feed
     - name: Commit changes
       run: |
         git config --global user.name 'haltepunkt'
